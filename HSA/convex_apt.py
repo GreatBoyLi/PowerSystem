@@ -1,6 +1,7 @@
 import cvxpy as cp
 import numpy as np
 import pandas as pd
+import os
 
 
 def run_optimal_ems(xd, profile, prices):
@@ -31,14 +32,16 @@ def run_optimal_ems(xd, profile, prices):
     total_cost = 0
     for i in range(2):
         p_tr = P_Tr_in if i == 0 else P_Tr_out
-        pv_raw = profile['pv_unit'].values * (A_in if i == 0 else A_out)
+        # pv_raw = profile['pv_unit'].values * (A_in if i == 0 else A_out)
+        A = A_in if i == 0 else A_out
+        pv_raw = cp.multiply(profile['pv_unit'].values, A)
 
         # 成本项：PV浪费 + 实时购电 + 日前购电 + 取消惩罚
-        term_pv = dt * cp.sum(f_pv[:, i] * pv_raw)
+        term_pv = dt * cp.sum(cp.multiply(f_pv[:, i], pv_raw))
         term_grid = dt * cp.sum(
-            prices['real_time'] * f_grt[:, i] * p_tr +
-            prices['day_ahead'] * f_gah[:, i] * p_tr +
-            prices['cancel_penalty'] * f_gcan[:, i] * p_tr
+            cp.multiply(prices['real_time'].values, f_grt[:, i]) * p_tr +
+            cp.multiply(prices['day_ahead'].values, f_gah[:, i]) * p_tr +
+            cp.multiply(prices['cancel_penalty'].values, f_gcan[:, i]) * p_tr
         )
         total_cost += term_pv + term_grid
 
@@ -57,15 +60,16 @@ def run_optimal_ems(xd, profile, prices):
 
         # 1. 动态功率平衡 (Eq. 17) 
         constraints += [
-            (f_gah[:, i] - f_gcan[:, i] + f_grt[:, i]) * p_tr +
-            (1 - f_pv[:, i]) * pv_raw +
-            P_ES[:, i] + sign_mut * f_mut * P_mut_max == p_load
+            cp.multiply((f_gah[:, i] - f_gcan[:, i] + f_grt[:, i]), p_tr) +
+            cp.multiply((1 - f_pv[:, i]), pv_raw) +
+            P_ES[:, i] + cp.multiply(cp.multiply(sign_mut, f_mut), P_mut_max) == p_load
         ]
 
         # 2. SOC 演化与能量平衡 (Eq. 14, 15) 
-        # 简化内阻模型，近似 P_ES = V_oc * I_ES 
+        # 简化内阻模型，近似 P_ES = V_oc * I_ES
+        E = E_in if i == 0 else E_out
         constraints += [
-            SOC[1:, i] == SOC[:-1, i] - (P_ES[:, i] * dt) / (E_in if i == 0 else E_out),
+            SOC[1:, i] == SOC[:-1, i] - cp.multiply(P_ES[:, i], dt) / E,
             SOC[0, i] == 0.6,  # 
             SOC[-1, i] == 0.6,  # 
             SOC[:, i] >= 0.2, SOC[:, i] <= 0.8  # 电池安全边界 
@@ -100,7 +104,23 @@ def run_optimal_ems(xd, profile, prices):
 
 if "__main__" == __name__:
     profile_dir = "data/随机剖面/"
-    static_dir = "data/静态数据"
-    price_dir = "data/电价"
+    static_file = "data/静态数据/2000个静态数据.csv"
+    price_file = "data/电价/电价.csv"
 
-    profile = pd.read_csv("profile.csv")
+    static_np = pd.read_csv(static_file).to_numpy()
+    price_pd = pd.read_csv(price_file)
+
+    for i in range(len(static_np)):
+        static_data = static_np[i]
+        for file_name in os.listdir(profile_dir):
+            if file_name.endswith(".csv") or file_name.endswith(".CSV"):  # 兼容大写后缀
+                # 拼接完整文件路径（避免路径分隔符问题，推荐用os.path.join）
+                file_path = os.path.join(profile_dir, file_name)
+                try:
+                    # 3. 读取CSV文件
+                    profile_pd = pd.read_csv(file_path)
+                except Exception as e:
+                    print(f"读取文件 {file_name} 失败：{str(e)}\n")
+
+                a = run_optimal_ems(static_data, profile_pd, price_pd)
+                print(a)
