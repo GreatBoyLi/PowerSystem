@@ -11,7 +11,7 @@ def generate_china_market_prices(Nt=672, delta_t=0.25):
     base_curve = np.zeros_like(hours)
 
     for i, h in enumerate(hours):
-        if 0 <= h < 6:          # 夜间平段
+        if 0 <= h < 6:          # 夜间平段 测试
             base_curve[i] = 0.35
         elif 6 <= h < 9:        # 早高峰爬坡
             base_curve[i] = 0.60
