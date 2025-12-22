@@ -1,5 +1,6 @@
 import cvxpy as cp
 import numpy as np
+import pandas as pd
 
 
 def run_optimal_ems(xd, profile, prices):
@@ -76,8 +77,8 @@ def run_optimal_ems(xd, profile, prices):
         # 转化为: -E <= P_ES <= 2E
         # ==========================================
         constraints += [
-            P_ES[:, i] <= 2 * E_cap,   # 放电不超过 2C
-            P_ES[:, i] >= -1 * E_cap   # 充电不超过 1C (注意负号)
+            P_ES[:, i] <= 2 * E_cap,  # 放电不超过 2C
+            P_ES[:, i] >= -1 * E_cap  # 充电不超过 1C (注意负号)
         ]
 
         # 4. 变量边界限制
@@ -95,3 +96,11 @@ def run_optimal_ems(xd, profile, prices):
     prob.solve(solver=cp.ECOS)
 
     return prob.value if prob.status == 'optimal' else np.inf
+
+
+if "__main__" == __name__:
+    profile_dir = "data/随机剖面/"
+    static_dir = "data/静态数据"
+    price_dir = "data/电价"
+
+    profile = pd.read_csv("profile.csv")
