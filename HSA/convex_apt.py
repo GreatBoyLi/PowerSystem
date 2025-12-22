@@ -9,7 +9,7 @@ def run_optimal_ems(xd, profile, prices):
     prices: 包含 'real_time', 'day_ahead', 'cancel_penalty' 的字典
     """
     Nt = 672  # 168h / 0.25h 
-    dt = 0.25  # 
+    dt = 0.25  #
 
     # 解析 xd 
     A_in, E_in, P_Tr_in = xd[0], xd[1], xd[2]
@@ -17,6 +17,7 @@ def run_optimal_ems(xd, profile, prices):
     P_mut_max = xd[6]  # 
 
     # --- 定义决策变量 (Table 1)  ---
+    # 这个初始化是一个变量，没有具体的值，相当于方程中的x
     f_gah = cp.Variable((Nt, 2), nonneg=True)  # 日前购电率
     f_gcan = cp.Variable((Nt, 2), nonneg=True)  # 日前取消率 
     f_grt = cp.Variable((Nt, 2), nonneg=True)  # 实时购电率 
@@ -50,6 +51,9 @@ def run_optimal_ems(xd, profile, prices):
         p_load = profile['load_in'].values if i == 0 else profile['load_out'].values
         sign_mut = -1 if i == 0 else 1  # 进城流出(-), 出城流入(+)
 
+        # 获取当前站点的储能容量 E (MWh)
+        E_cap = E_in if i == 0 else E_out
+
         # 1. 动态功率平衡 (Eq. 17) 
         constraints += [
             (f_gah[:, i] - f_gcan[:, i] + f_grt[:, i]) * p_tr +
@@ -66,7 +70,17 @@ def run_optimal_ems(xd, profile, prices):
             SOC[:, i] >= 0.2, SOC[:, i] <= 0.8  # 电池安全边界 
         ]
 
-        # 3. 变量边界限制 
+        # ==========================================
+        # 3. 新增: 充放电倍率约束 (Eq. 9)
+        # 对应论文: -1 <= I_ES / Q_N <= 2
+        # 转化为: -E <= P_ES <= 2E
+        # ==========================================
+        constraints += [
+            P_ES[:, i] <= 2 * E_cap,   # 放电不超过 2C
+            P_ES[:, i] >= -1 * E_cap   # 充电不超过 1C (注意负号)
+        ]
+
+        # 4. 变量边界限制
         constraints += [
             f_gah[:, i] <= 1, f_grt[:, i] <= 1,
             f_gcan[:, i] <= f_gah[:, i],

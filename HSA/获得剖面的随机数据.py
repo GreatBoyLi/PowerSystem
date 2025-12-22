@@ -102,7 +102,7 @@ for scenario in scenarios:
     dir = "data/随机剖面"
     if not os.path.exists(dir):
         os.makedirs(dir)
-    name = dir + f"/scenario_{count}"
+    name = dir + f"/scenario_{count}.csv"
     scenario.to_csv(name, index=False, encoding="utf-8")
     count += 1
 
