@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 
 
 class HSADataGenerator:
@@ -98,7 +99,10 @@ scenarios = [generator.generate_single_profile() for _ in range(num_scenarios)]
 # 存储数据
 count = 0
 for scenario in scenarios:
-    name = f"data/随机剖面/剖面数据_{count}"
+    dir = "data/随机剖面"
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+    name = dir + f"/scenario_{count}"
     scenario.to_csv(name, index=False, encoding="utf-8")
     count += 1
 
