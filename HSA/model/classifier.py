@@ -9,6 +9,7 @@ from sklearn.preprocessing import StandardScaler
 import joblib  # 用于保存归一化参数
 import matplotlib.pyplot as plt
 import os
+from HSA.tool.tool import getreadfilepath
 
 # 在代码开头设置，指定第3张显卡
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
@@ -45,21 +46,23 @@ class EMSDataset(Dataset):
 
 
 # 读取之前生成的 CSV
-df = pd.read_csv('training_dataset_final.csv')
+name = "../data/train/training_dataset_final.csv"
+path = getreadfilepath(__file__, name)
+df = pd.read_csv(path)
 
 # 定义输入特征 (7维 X_d)
 feature_cols = [
-    'A_in_10^3m2', 'A_out_10^3m2',
-    'E_in_MWh', 'E_out_MWh',
-    'P_Tr_max_in_MW', 'P_Tr_max_out_MW',
-    'P_mut_max_MW'
+    'A_in：1000平方', 'A_out：1000平方',
+    'E_in：MWh', 'E_out：MWh',
+    'P_Tr_max_in：MW', 'P_Tr_max_out：MW',
+    'P_mut_max：MW'
 ]
 
 X = df[feature_cols].values
-y = df['feasible'].values  # 0: 不可行, 1: 可行
+y = df['feasible'].values  # 0: 可靠, 1: 不可行
 
 # 数据划分
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
 # !!! 关键步骤: 数据标准化 (Standardization) !!!
 # 神经网络对输入数据的尺度非常敏感，必须进行归一化
