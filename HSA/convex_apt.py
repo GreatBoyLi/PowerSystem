@@ -1,7 +1,13 @@
+import os
+
+# 让 OMP, MKL 等库只用一个线程，防止在外层多进程时打架
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+
 import cvxpy as cp
 import numpy as np
 import pandas as pd
-import os
 
 
 def run_optimal_ems(xd, profile, prices):
@@ -14,9 +20,9 @@ def run_optimal_ems(xd, profile, prices):
     dt = 0.25  #
 
     # 解析 xd 
-    A_in, E_in, P_Tr_in = xd[0], xd[1], xd[2]
-    A_out, E_out, P_Tr_out = xd[3], xd[4], xd[5]
-    P_mut_max = xd[6]  # 
+    A_in, E_in, P_Tr_in = xd[0], xd[2], xd[4]
+    A_out, E_out, P_Tr_out = xd[1], xd[3], xd[5]
+    P_mut_max = xd[6]  #
 
     # --- 定义决策变量 (Table 1)  ---
     # 这个初始化是一个变量，没有具体的值，相当于方程中的x
@@ -33,8 +39,8 @@ def run_optimal_ems(xd, profile, prices):
     for i in range(2):
         p_tr = P_Tr_in if i == 0 else P_Tr_out
         # pv_raw = profile['pv_unit'].values * (A_in if i == 0 else A_out)
-        A = A_in if i == 0 else A_out
-        pv_raw = cp.multiply(profile['pv_unit'].values, A)
+        A = (A_in if i == 0 else A_out) * 1000  # 将A_in,A_out的单位由1000平方米，转换为平方米
+        pv_raw = cp.multiply(profile['pv_unit'].values, A) / 1000  # 单位为kW
 
         # 成本项：PV浪费 + 实时购电 + 日前购电 + 取消惩罚
         term_pv = dt * cp.sum(cp.multiply(f_pv[:, i], pv_raw))
@@ -116,11 +122,12 @@ if "__main__" == __name__:
             if file_name.endswith(".csv") or file_name.endswith(".CSV"):  # 兼容大写后缀
                 # 拼接完整文件路径（避免路径分隔符问题，推荐用os.path.join）
                 file_path = os.path.join(profile_dir, file_name)
+                profile_pd = None
                 try:
                     # 3. 读取CSV文件
                     profile_pd = pd.read_csv(file_path)
                 except Exception as e:
                     print(f"读取文件 {file_name} 失败：{str(e)}\n")
-
-                a = run_optimal_ems(static_data, profile_pd, price_pd)
-                print(a)
+                if profile_pd is not None:
+                    a = run_optimal_ems(static_data, profile_pd, price_pd)
+                    print(a)

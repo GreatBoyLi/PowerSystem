@@ -59,7 +59,7 @@ def generate_china_market_prices(Nt=672, delta_t=0.25):
     prices = {
         'day_ahead': da_prices * 1000,  # (672,)
         'real_time': rt_prices * 1000,  # (672,)
-        'cancel_penalty': cancel_penalty * 1000  # (672,)
+        'cancel_penalty': cancel_penalty * rt_prices * 1000  # (672,)
     }
     return prices, hours
 

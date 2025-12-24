@@ -13,7 +13,7 @@ class HSADataGenerator:
         # 充电行为参数 (参考论文 2.1 节) 
         self.alpha1 = 0.33  # EV 渗透率
         self.alpha2 = 0.11  # 充电需求率
-        self.n_ch_max = 50  # 充电桩的数量
+        self.n_ch_max = 40  # 充电桩的数量
         self.p_fast = 0.5  # 快充选择概率
         self.P_F = 0.120  # 快充功率 120kW (单位: MW)
         self.P_S = 0.060  # 慢充功率 60kW (单位: MW)
@@ -23,7 +23,7 @@ class HSADataGenerator:
         """模拟图 1(c) 的双峰交通流均值"""
         hour = (t * self.delta_t) % 24
         # 构造早晚高峰 (9:00 和 18:00)
-        mu = 50 + 250 * (np.exp(-(hour - 9) ** 2 / 6) + np.exp(-(hour - 18) ** 2 / 8))
+        mu = 100 + 250 * (np.exp(-(hour - 9) ** 2 / 6) + np.exp(-(hour - 18) ** 2 / 8))
         return mu
 
     def get_diurnal_pv_mu(self, t):
@@ -33,7 +33,7 @@ class HSADataGenerator:
         hour = (t * self.delta_t) % 24
         if 6 <= hour <= 18:
             # 这里的 300 是 Fig. 1(d) 中的峰值参考
-            mu_pv_t = 300 * np.sin(np.pi * (hour - 6) / 12)
+            mu_pv_t = 280 * np.sin(np.pi * (hour - 6) / 12)  # 设每平方米发电为200W
 
             # 2. 获取该时刻的动态标准差 sigma_PV(t)
             # 论文指出 sigma 也是动态的
@@ -64,16 +64,26 @@ class HSADataGenerator:
 
             # 2. 抽样交通量 N ~ N(mu, sigma) 
             mu_traffic = self.get_diurnal_traffic_mu(t)
-            sigma_traffic = mu_traffic * 0.2
+            sigma_traffic = mu_traffic * 0.1
 
             # 分别为进城和出城抽样 (增加随机差异)
             n_in = max(0, np.random.normal(mu_traffic, sigma_traffic))
-            n_out = max(0, np.random.normal(mu_traffic * 0.85, sigma_traffic))
+            n_out = max(0, np.random.normal(mu_traffic, sigma_traffic))
 
-            # 3. 计算充电负荷 (二项分布模拟个体行为) 
+            # 3. 计算充电负荷 (二项分布模拟个体行为)
             for n_total, key in zip([n_in, n_out], [['ch_fast_in', 'ch_slow_in', 'load_in'],
                                                     ['ch_fast_out', 'ch_slow_out', 'load_out']]):
                 n_ch = np.random.binomial(int(n_total), self.alpha1 * self.alpha2)
+                # 因为论文中只讨论了车的流量和充电的意愿，但是没有讨论车什么时候充满，所以这里只按论文中的实现来
+
+                # n_fast = np.random.binomial(n_ch, self.p_fast)
+                # n_slow = n_ch - n_fast
+                # # 总负荷 = 快充 + 慢充 + 基础负荷
+                # total_load = n_fast * self.P_F + n_slow * self.P_S + self.P_BL
+                # profile[key[0]].append(n_fast)
+                # profile[key[1]].append(n_slow)
+                # profile[key[2]].append(total_load)
+
                 if n_ch > self.n_ch_max:
                     n_fast = np.random.binomial(n_ch, self.p_fast)
                     profile[key[0]].append(n_fast)
@@ -84,7 +94,7 @@ class HSADataGenerator:
                     profile[key[0]].append(n_fast)
                     n_slow = 0
                     profile[key[1]].append(0)
-                # 总负荷 = 快充 + 慢充 + 基础负荷 
+                # 总负荷 = 快充 + 慢充 + 基础负荷
                 total_load = n_fast * self.P_F + n_slow * self.P_S + self.P_BL
                 profile[key[2]].append(total_load)
 
@@ -94,7 +104,7 @@ class HSADataGenerator:
 # --- 执行生成 ---
 generator = HSADataGenerator()
 # 生成 10 个随机剖面用于计算期望值 f2 
-num_scenarios = 10
+num_scenarios = 20
 scenarios = [generator.generate_single_profile() for _ in range(num_scenarios)]
 # 存储数据
 count = 0
