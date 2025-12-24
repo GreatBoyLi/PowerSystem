@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 import pandas as pd
+from HSA.tool.tool import getwritefilepath
 
 
 def generate_china_market_prices(Nt=672, delta_t=0.25):
@@ -67,12 +67,11 @@ def generate_china_market_prices(Nt=672, delta_t=0.25):
 if "__main__" == __name__:
     # --- 执行生成并可视化 ---
     price_data, day_hours = generate_china_market_prices()
-    dir = "data/电价/"
-    if not os.path.exists(dir):
-        os.makedirs(dir)
     price_pd = pd.DataFrame(price_data)
-    name = dir + "电价.csv"
-    price_pd.to_csv(name, index=False, encoding="utf-8")
+    dir = "../data/电价/"
+    name = "电价.csv"
+    path = getwritefilepath(__file__, dir, name)
+    price_pd.to_csv(path, index=False, encoding="utf-8")
 
     # 绘图展示前24小时对比
     plt.figure(figsize=(10, 5))

@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from convex_apt import run_optimal_ems
+from HSA.preparedata.convex_apt import run_optimal_ems
 import os
 
 # ==========================================
@@ -78,9 +78,9 @@ if "__main__" == __name__:
     # ==========================================
 
     # A. 读取数据
-    profile_dir = "data/随机剖面/"
+    profile_dir = "../data/随机剖面/"
     static_file = "data/静态数据/2000个静态数据.csv"
-    price_file = "data/电价/电价.csv"
+    price_file = "../data/电价/电价.csv"
 
     # --- 优化关键：预先读取剖面数据 ---
     print("正在预读取剖面数据到内存...")
@@ -126,7 +126,7 @@ if "__main__" == __name__:
     df_xd['feasible'] = feasibility_list
 
     # 保存为带标签的训练集
-    train_data_dir = "data/train/"
+    train_data_dir = "../data/train/"
     if not os.path.exists(train_data_dir):
         os.makedirs(train_data_dir)
     train_file = os.path.join(train_data_dir, 'training_dataset_final.csv')

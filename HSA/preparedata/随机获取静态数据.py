@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.stats import qmc
-import os
+from HSA.tool.tool import getwritefilepath
 
 # 1. 定义设计参数的上下限 (参考论文 Table 2)
 # 顺序: [A_in, A_out, E_in, E_out, P_Tr_in, P_Tr_out, P_mut_max]
@@ -28,9 +28,8 @@ columns = [
 df_xd = pd.DataFrame(xd_data, columns=columns)
 
 # 保存数据供后续 EMS 计算使用
-dir = "data/静态数据/"
-if not os.path.exists(dir):
-    os.makedirs(dir)
-path = dir + "10000个静态数据.csv"
+dir = "../data/静态数据/"
+name = "10000个静态数据.csv"
+path = getwritefilepath(__file__, dir, name)
 df_xd.to_csv(path, index=False, encoding="utf-8")
 print("已成功生成 2000 组 LHS 采样数据并保存至 2000个静态数据.csv")

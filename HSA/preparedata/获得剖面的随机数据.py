@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import os
+from HSA.tool.tool import getwritefilepath
 
 
 class HSADataGenerator:
@@ -109,11 +109,11 @@ scenarios = [generator.generate_single_profile() for _ in range(num_scenarios)]
 # 存储数据
 count = 0
 for scenario in scenarios:
-    dir = "data/随机剖面"
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    name = dir + f"/scenario_{count}.csv"
-    scenario.to_csv(name, index=False, encoding="utf-8")
+
+    dir = "../data/随机剖面"
+    name = f"scenario_{count}.csv"
+    path = getwritefilepath(__file__,dir, name)
+    scenario.to_csv(path, index=False, encoding="utf-8")
     count += 1
 
 # 打印第一个剖面的前 5 行验证结果

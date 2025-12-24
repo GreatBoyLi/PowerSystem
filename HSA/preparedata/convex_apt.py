@@ -109,9 +109,9 @@ def run_optimal_ems(xd, profile, prices):
 
 
 if "__main__" == __name__:
-    profile_dir = "data/随机剖面/"
+    profile_dir = "../data/随机剖面/"
     static_file = "data/静态数据/2000个静态数据.csv"
-    price_file = "data/电价/电价.csv"
+    price_file = "../data/电价/电价.csv"
 
     static_np = pd.read_csv(static_file).to_numpy()
     price_pd = pd.read_csv(price_file)

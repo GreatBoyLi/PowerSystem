@@ -1,8 +1,9 @@
 import pandas as pd
 from joblib import Parallel, delayed
 import multiprocessing
-from 训练数据准备 import calculate_f1_capex, calculate_f2_expectation
+from HSA.preparedata.单进程获取训练数据 import calculate_f1_capex, calculate_f2_expectation
 import os
+from HSA.tool.tool import getreadfilepath
 
 
 # 假设这些函数已经在其他地方定义好了
@@ -26,11 +27,25 @@ def process_single_row(row, profile_data_list, prices_df):
 # --- 主程序 ---
 if __name__ == '__main__':  # Windows下使用多进程必须加这行判断
 
-    # A. 读取数据
-    profile_dir = "data/随机剖面/"
-    static_file = "data/静态数据/10000个静态数据.csv"
-    price_file = "data/电价/电价.csv"
+    # 获取当前文件的目录结构
+    script_dir = getreadfilepath(__file__)
 
+    # 拼接随机剖面目录的绝对路径
+    profile_dir = os.path.join(script_dir, "../data/随机剖面/")
+    profile_dir = os.path.normpath(profile_dir)  # 标准化路径（处理多余的/或..）
+    print(f"随机剖面的目录绝对路径：{profile_dir}")
+
+    # 拼接静态数据文件的绝对路径
+    static_file = os.path.join(script_dir, "../data/静态数据/10000个静态数据.csv")
+    static_file = os.path.normpath(static_file)  # 标准化路径（处理多余的/或..）
+    print(f"静态数据的目录绝对路径：{static_file}")
+
+    # 拼接电价文件的绝对路径
+    price_file = os.path.join(script_dir, "../data/电价/电价.csv")
+    price_file = os.path.normpath(price_file)  # 标准化路径（处理多余的/或..）
+    print(f"电价的目录绝对路径：{price_file}")
+
+    # A. 读取数据
     # --- 优化关键：预先读取剖面数据 ---
     print("正在预读取剖面数据到内存...")
     profile_data_list = []
@@ -73,7 +88,9 @@ if __name__ == '__main__':  # Windows下使用多进程必须加这行判断
     df_xd['feasible'] = feasibility_list
 
     # 保存为带标签的训练集
-    train_data_dir = "data/train/"
+    train_data_dir = os.path.join(script_dir, "../data/train/")
+    train_data_dir = os.path.normpath(train_data_dir)  # 标准化路径（处理多余的/或..）
+    print(f"训练数据目录绝对路径：{train_data_dir}")
     if not os.path.exists(train_data_dir):
         os.makedirs(train_data_dir)
     train_file = os.path.join(train_data_dir, 'training_dataset_final.csv')
