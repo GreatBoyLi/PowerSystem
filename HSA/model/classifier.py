@@ -45,43 +45,6 @@ class EMSDataset(Dataset):
         return self.X[idx], self.y[idx]
 
 
-# 读取之前生成的 CSV
-name = "../data/train/training_dataset_final.csv"
-path = getreadfilepath(__file__, name)
-df = pd.read_csv(path)
-
-# 定义输入特征 (7维 X_d)
-feature_cols = [
-    'A_in：1000平方', 'A_out：1000平方',
-    'E_in：MWh', 'E_out：MWh',
-    'P_Tr_max_in：MW', 'P_Tr_max_out：MW',
-    'P_mut_max：MW'
-]
-
-X = df[feature_cols].values
-y = df['feasible'].values  # 0: 可靠, 1: 不可行
-
-# 数据划分
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
-# !!! 关键步骤: 数据标准化 (Standardization) !!!
-# 神经网络对输入数据的尺度非常敏感，必须进行归一化
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
-
-# 保存 scaler 供后续预测时使用 (这步很重要！)
-joblib.dump(scaler, 'classifier_scaler.pkl')
-print("Scaler saved as classifier_scaler.pkl")
-
-# 创建 DataLoader
-train_dataset = EMSDataset(X_train_scaled, y_train)
-test_dataset = EMSDataset(X_test_scaled, y_test)
-
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
-
-
 # ==========================================
 # 3. 定义神经网络模型 (DNN Classifier)
 # ==========================================
@@ -111,77 +74,115 @@ class FeasibilityClassifier(nn.Module):
         return self.net(x)
 
 
-# 初始化模型并移动到 GPU
-model = FeasibilityClassifier(input_dim=7).to(device)
+if "__main__" == __name__:
 
-# 定义损失函数和优化器
-criterion = nn.BCEWithLogitsLoss()  # 结合了 Sigmoid + BCELoss，数值更稳定
-optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    # 读取之前生成的 CSV
+    name = "../data/train/training_dataset_final.csv"
+    path = getreadfilepath(__file__, name)
+    df = pd.read_csv(path)
 
-# ==========================================
-# 4. 训练循环
-# ==========================================
-print("Start Training...")
-loss_history = []
+    # 定义输入特征 (7维 X_d)
+    feature_cols = [
+        'A_in：1000平方', 'A_out：1000平方',
+        'E_in：MWh', 'E_out：MWh',
+        'P_Tr_max_in：MW', 'P_Tr_max_out：MW',
+        'P_mut_max：MW'
+    ]
 
-for epoch in range(EPOCHS):
-    model.train()  # 切换到训练模式
-    running_loss = 0.0
+    X = df[feature_cols].values
+    y = df['feasible'].values  # 0: 可靠, 1: 不可行
 
-    for inputs, labels in train_loader:
-        # 将数据移动到 GPU
-        inputs, labels = inputs.to(device), labels.to(device)
+    # 数据划分
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-        # 梯度清零
-        optimizer.zero_grad()
+    # !!! 关键步骤: 数据标准化 (Standardization) !!!
+    # 神经网络对输入数据的尺度非常敏感，必须进行归一化
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
 
-        # 前向传播
-        outputs = model(inputs)
+    # 保存 scaler 供后续预测时使用 (这步很重要！)
+    joblib.dump(scaler, 'classifier_scaler.pkl')
+    print("Scaler saved as classifier_scaler.pkl")
 
-        # 计算损失
-        loss = criterion(outputs, labels)
+    # 创建 DataLoader
+    train_dataset = EMSDataset(X_train_scaled, y_train)
+    test_dataset = EMSDataset(X_test_scaled, y_test)
 
-        # 反向传播与优化
-        loss.backward()
-        optimizer.step()
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
-        running_loss += loss.item()
+    # 初始化模型并移动到 GPU
+    model = FeasibilityClassifier(input_dim=7).to(device)
 
-    avg_loss = running_loss / len(train_loader)
-    loss_history.append(avg_loss)
+    # 定义损失函数和优化器
+    criterion = nn.BCEWithLogitsLoss()  # 结合了 Sigmoid + BCELoss，数值更稳定
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    if (epoch + 1) % 10 == 0:
-        print(f"Epoch [{epoch + 1}/{EPOCHS}], Loss: {avg_loss:.4f}")
+    # ==========================================
+    # 4. 训练循环
+    # ==========================================
+    print("Start Training...")
+    loss_history = []
 
-# ==========================================
-# 5. 模型评估与保存
-# ==========================================
-model.eval()  # 切换到评估模式
-correct = 0
-total = 0
+    for epoch in range(EPOCHS):
+        model.train()  # 切换到训练模式
+        running_loss = 0.0
 
-with torch.no_grad():
-    for inputs, labels in test_loader:
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = model(inputs)
+        for inputs, labels in train_loader:
+            # 将数据移动到 GPU
+            inputs, labels = inputs.to(device), labels.to(device)
 
-        # 将 Logits 转换为概率，再转换为 0/1 预测
-        predicted = (torch.sigmoid(outputs) > 0.5).float()
+            # 梯度清零
+            optimizer.zero_grad()
 
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
+            # 前向传播
+            outputs = model(inputs)
 
-accuracy = 100 * correct / total
-print(f"Test Accuracy: {accuracy:.2f}%")
+            # 计算损失
+            loss = criterion(outputs, labels)
 
-# 保存模型权重
-torch.save(model.state_dict(), 'feasibility_classifier.pth')
-print("Model saved as feasibility_classifier.pth")
+            # 反向传播与优化
+            loss.backward()
+            optimizer.step()
 
-# 绘制 Loss 曲线
-plt.plot(loss_history)
-plt.title('Training Loss Curve')
-plt.xlabel('Epoch')
-plt.ylabel('BCE Loss')
-plt.savefig('classifier_loss.png')
-print("Loss curve saved as classifier_loss.png")
+            running_loss += loss.item()
+
+        avg_loss = running_loss / len(train_loader)
+        loss_history.append(avg_loss)
+
+        if (epoch + 1) % 10 == 0:
+            print(f"Epoch [{epoch + 1}/{EPOCHS}], Loss: {avg_loss:.4f}")
+
+    # ==========================================
+    # 5. 模型评估与保存
+    # ==========================================
+    model.eval()  # 切换到评估模式
+    correct = 0
+    total = 0
+
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+
+            # 将 Logits 转换为概率，再转换为 0/1 预测
+            predicted = (torch.sigmoid(outputs) > 0.5).float()
+
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    accuracy = 100 * correct / total
+    print(f"Test Accuracy: {accuracy:.2f}%")
+
+    # 保存模型权重
+    torch.save(model.state_dict(), 'feasibility_classifier.pth')
+    print("Model saved as feasibility_classifier.pth")
+
+    # 绘制 Loss 曲线
+    plt.plot(loss_history)
+    plt.title('Training Loss Curve')
+    plt.xlabel('Epoch')
+    plt.ylabel('BCE Loss')
+    plt.savefig('classifier_loss.png')
+    print("Loss curve saved as classifier_loss.png")
