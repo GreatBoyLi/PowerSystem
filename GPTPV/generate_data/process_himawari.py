@@ -4,27 +4,23 @@ import pandas as pd
 import os
 import glob
 from tqdm import tqdm
+from GPTPV.utils.config import load_config
 
-# ================= 配置区域 =================
-# 1. 数据根目录 (存放 202001/01/00/...nc 的地方)
-DATA_DIR = "../data/himawari/"
+config_file = "../config/config.yaml"
+config = load_config(config_file)
+
+DATA_DIR = config["file_paths"]["himawari_dir"]
 
 # 2. 模拟论文中的 "5个真实电站" 坐标 (以山西太原 37.8, 112.5 为中心)
 # 我们在中心附近随机散布 5 个点
-REAL_STATIONS = [
-    {"name": "Station_1", "lat": 37.80, "lon": 112.50},  # 中心
-    {"name": "Station_2", "lat": 37.85, "lon": 112.45},  # 西北
-    {"name": "Station_3", "lat": 37.75, "lon": 112.55},  # 东南
-    {"name": "Station_4", "lat": 37.82, "lon": 112.60},  # 东边
-    {"name": "Station_5", "lat": 37.78, "lon": 112.40},  # 西边
-]
+REAL_STATIONS = config["stations"]["real_stations"]
 
 # 3. 每个电站选多少个虚拟点？ (论文说5个站共100个点 -> 每个站20个)
-POINTS_PER_STATION = 20
+POINTS_PER_STATION = config["stations"]["virtual_points_per_station"]
 
 # 4. 要处理的日期范围
-START_DATE = "2020-01-01"
-END_DATE = "2020-01-01"  # 先试跑一天
+START_DATE = config["dates"]["start_date"]
+END_DATE = config["dates"]["end_date"]  # 先试跑一天
 
 
 # ===========================================

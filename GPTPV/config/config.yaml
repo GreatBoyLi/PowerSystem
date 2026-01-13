@@ -1,0 +1,32 @@
+# era5_config.yaml - ERA5数据处理配置文件
+# 1. 文件路径配置
+file_paths:
+  era5_dir: "../data/era5/era5_shanxi_2020_01.nc"  # ERA5输入NC文件
+  era5_output: "../data/era5/virtual_stations_meteo_data.csv"  # 输出CSV文件
+  himawari_dir: "../data/himawari/"
+
+# 2. 电站配置
+stations:
+  real_stations:
+    - name: "Station_1"
+      lat: 37.80
+      lon: 112.50
+    - name: "Station_2"
+      lat: 37.85
+      lon: 112.45
+    - name: "Station_3"
+      lat: 37.75
+      lon: 112.55
+    - name: "Station_4"
+      lat: 37.82
+      lon: 112.60
+    - name: "Station_5"
+      lat: 37.78
+      lon: 112.40
+  virtual_points_per_station: 20  # 每个电站的虚拟点数量
+
+
+# 3. 要处理的时间
+dates:
+  start_date: "2020-01-01"
+  end_date: "2020-01-01"

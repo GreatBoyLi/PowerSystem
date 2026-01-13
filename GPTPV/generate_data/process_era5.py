@@ -1,99 +1,84 @@
 import xarray as xr
-import numpy as np
 import pandas as pd
+import numpy as np
 import os
+from GPTPV.utils.config import load_config
 
-# ================= 配置区域 =================
-# 1. ERA5 文件路径 (你刚下载的那个)
-ERA5_FILE = "./data/era5/era5_shanxi_2020_01.nc"
+config_file = "../config/config.yaml"
+config = load_config(config_file)
 
-# 2. 之前生成的 "100个虚拟站点" 的坐标
-# ⚠️ 注意：为了演示，这里我直接定义生成逻辑。
-# 在实际项目中，建议你读取上一步生成的 csv 里的坐标，或者复用 get_spatial_indices 的结果
-# 这里我们再次模拟生成这 100 个点的坐标 (Lat, Lon)
-# 假设我们只处理第 1 个电站的第 1 个点作为演示
-TARGET_POINTS = [
-    {"id": "Station_1_P0", "lat": 37.80, "lon": 112.50},
-    # ... 实际应该有 100 个点
-]
+ERA5_FILE = config["file_paths"]["era5_dir"]
+OUTPUT_CSV = config["file_paths"]["era5_output"]
+REAL_STATIONS = config["stations"]["real_stations"]
+POINTS_PER_STATION = config["stations"]["virtual_points_per_station"]
 
 
 # ===========================================
 
-def process_era5_data(nc_file, target_points):
-    print(f"🔄 正在处理: {nc_file}")
-    ds = xr.open_dataset(nc_file)
+def extract_and_broadcast_era5():
+    if not os.path.exists(ERA5_FILE):
+        print(f"❌ 找不到文件: {ERA5_FILE}")
+        return
 
-    # 1. 准备坐标网格 (ERA5)
-    # ERA5 的 lat 也是从大到小，lon 从小到大
-    era_lats = ds['latitude'].values
-    era_lons = ds['longitude'].values
+    print(f"🔄 正在读取 ERA5 文件: {ERA5_FILE}")
+    ds = xr.open_dataset(ERA5_FILE)
 
-    results_temp = {}  # 存气温
-    results_precip = {}  # 存降水
+    # 1. 预处理数据 (单位换算)
+    print("🧮 正在进行物理量计算与单位换算...")
 
-    # 2. 空间匹配：为每个虚拟站点找最近的 ERA5 网格
-    for pt in target_points:
-        # 计算距离 (简单的绝对值差，找下标)
-        # abs(数组 - 目标值).argmin() 返回最近值的索引
-        lat_idx = np.abs(era_lats - pt['lat']).argmin()
-        lon_idx = np.abs(era_lons - pt['lon']).argmin()
+    # 气温 K -> C
+    temp_c = ds['t2m'] - 273.15
 
-        # 提取该网格的所有时间数据
-        # t2m = 2米气温, tp = 总降水
-        # ⚠️ 注意变量名可能是 't2m' 或 '2t', 'tp' 或 'total_precipitation'，请根据上一步"体检"结果修改
-        raw_temp = ds['t2m'][:, lat_idx, lon_idx].to_pandas()  # 转成 Pandas Series
-        raw_precip = ds['tp'][:, lat_idx, lon_idx].to_pandas()
+    # 降水 m -> mm (并将负数置0)
+    precip_mm = ds['tp'] * 1000
+    precip_mm = precip_mm.where(precip_mm >= 0, 0)
 
-        # === 数据清洗与单位换算 ===
+    # 风速 (u, v) -> speed
+    wind_speed = np.sqrt(ds['u10'] ** 2 + ds['v10'] ** 2)
 
-        # A. 气温处理
-        # 单位：开尔文 -> 摄氏度
-        temp_c = raw_temp - 273.15
-        # 时间插值：1小时 -> 15分钟
-        # resample('15T') 会生成空行，interpolate('linear') 会填补
-        temp_15min = temp_c.resample('15min').interpolate(method='linear')
+    # 2. 初始化字典存储所有列数据（核心优化：避免循环插列）
+    # 先存入时间索引，后续所有列都存在这个字典里
+    time_index = pd.to_datetime(ds.valid_time.values)
+    data_dict = {"Timestamp": time_index}  # 时间列作为基础
 
-        # B. 降水处理
-        # 单位：米 -> 毫米 (x1000)
-        # 逻辑：论文说 "Daily precipitation was calculated by summing 1 h cumulants"
-        # 所以我们要先算日总和，然后把这个数字“广播”给当天的所有 15分钟时刻
-        precip_mm = raw_precip * 1000
-        daily_precip = precip_mm.resample('D').sum()  # 算出每天的总降水
+    print("🚀 正在提取并分发数据...")
 
-        # 把日降水映射回 15分钟数据 (向前填充)
-        # 例如：1月1日全天的 precip 都是 1月1日的总和
-        precip_15min = daily_precip.reindex(temp_15min.index, method='ffill')
+    # 3. 遍历 5 个真实电站中心
+    for station in REAL_STATIONS:
+        s_name = station['name']
+        s_lat = station['lat']
+        s_lon = station['lon']
 
-        # 存入字典
-        results_temp[pt['id']] = temp_15min
-        results_precip[pt['id']] = precip_15min
+        print(f"   -> 处理电站: {s_name} ({s_lat}, {s_lon})")
 
-    ds.close()
+        # --- A. 提取该电站中心点的 ERA5 数据 ---
+        # 使用 nearest 方法找到最近的 ERA5 网格
+        # 因为 ERA5 分辨率粗，周围几公里的虚拟点其实都在这个网格里
+        t_val = temp_c.sel(latitude=s_lat, longitude=s_lon, method='nearest').values
+        p_val = precip_mm.sel(latitude=s_lat, longitude=s_lon, method='nearest').values
+        w_val = wind_speed.sel(latitude=s_lat, longitude=s_lon, method='nearest').values
 
-    # 3. 合并成 DataFrame
-    df_temp = pd.DataFrame(results_temp)
-    df_precip = pd.DataFrame(results_precip)
+        # --- B. 广播给该电站旗下的所有虚拟点 (P0 - P19) ---
+        for i in range(POINTS_PER_STATION):
+            # 构建列名 (例如 Station_1_P0_Temp)
+            # 这里的命名格式要与你之后合并数据时的预期一致
+            base_col = f"{s_name}_P{i}"
+            data_dict[f"{base_col}_Temp"] = t_val
+            data_dict[f"{base_col}_Wind"] = w_val
+            data_dict[f"{base_col}_Precip"] = p_val
 
-    # 给列名加后缀区分
-    df_temp.columns = [f"{c}_Temp" for c in df_temp.columns]
-    df_precip.columns = [f"{c}_Precip" for c in df_precip.columns]
+    # 4. 一次性构建DataFrame（关键：避免碎片化）
+    final_df = pd.DataFrame(data_dict)
+    final_df = final_df.set_index("Timestamp")  # 设置时间为索引
 
-    # 横向合并
-    final_df = pd.concat([df_temp, df_precip], axis=1)
-    return final_df
+    print("===== 📊 数据预览 (前5行, 前6列) =====")
+    print(final_df.iloc[:, :6].head())
+
+    # 4. 保存
+    final_df.to_csv(OUTPUT_CSV)
+    print(f"\n✅ 处理完成！数据已保存至: {OUTPUT_CSV}")
+    print("💡 说明：由于 ERA5 分辨率较低(~30km)，同一电站下的虚拟点共享相同的气象数据是合理的。")
 
 
 if __name__ == "__main__":
-    if os.path.exists(ERA5_FILE):
-        df_era5 = process_era5_data(ERA5_FILE, TARGET_POINTS)
-
-        print("\n===== ✅ 处理结果预览 =====")
-        print(df_era5.head())
-        print(f"\n数据形状: {df_era5.shape}")
-
-        # 保存一下看看
-        df_era5.to_csv("era5_processed_sample.csv")
-        print("已保存至 era5_processed_sample.csv")
-    else:
-        print("请先下载数据！")
+    extract_and_broadcast_era5()

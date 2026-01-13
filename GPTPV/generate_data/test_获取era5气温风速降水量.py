@@ -1,9 +1,6 @@
 import xarray as xr
 import os
 
-import netCDF4
-print(f"NetCDF4 版本: {netCDF4.__version__}")
-
 # 修改为你刚下载的那个文件名
 file_path = "../data/era5/era5_shanxi_2020_01.nc"
 
