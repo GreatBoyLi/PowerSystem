@@ -146,6 +146,9 @@ def process_temporal_data(target_indices, date_list):
                     # 循环提取那 100 个点的值
                     for i, idx_info in enumerate(target_indices):
                         val = swr_data[idx_info['lat_idx'], idx_info['lon_idx']]
+                        # 处理 NaN 和 负值 (夜间)
+                        if np.isnan(val) or val < 0:
+                            val = 0.0
 
                         # 命名列名: Station_1_Point_0
                         col_name = f"{idx_info['station']}_P{i % POINTS_PER_STATION}"

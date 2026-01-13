@@ -144,13 +144,9 @@ def main():
 
         print(f"\n📅 处理日期: {yyyy}-{mm}-{dd}")
 
-        # 只下载白天的数据 北京时间 04:00-22:00
-        # 北京时间和UTC时间相差8个小时，即北京时间 - 8 等于 UTC时间
-        # 这样可以节省大量时间和空间！
         # 如果需要全天，改回 range(24)
-        for hour in range(4, 21):
-            hour1 = (hour - 8) if (hour - 8) >= 0 else (hour - 8 + 24)
-            hh = f"{hour1:02d}"
+        for hour in range(24):
+            hh = f"{hour:02d}"
 
             remote_dir = f"{BASE_REMOTE_DIR}/{yyyymm}/{dd}/{hh}/"
             local_day_dir = os.path.join(LOCAL_SAVE_DIR, yyyymm, dd, hh)
