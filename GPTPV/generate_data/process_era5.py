@@ -17,7 +17,24 @@ POINTS_PER_STATION = config["stations"]["virtual_points_per_station"]
 
 # 2. 获取时间范围
 START_DATE = pd.to_datetime(config["dates"]["start_date"])
-END_DATE = pd.to_datetime(config["dates"]["end_date"])
+# 给结束日期加上 23小时59分59秒，确保覆盖一整天
+END_DATE = pd.to_datetime(config["dates"]["end_date"]) + pd.Timedelta(hours=23, minutes=59, seconds=59)
+
+
+def get_needed_year_months(start_dt, end_dt):
+    """返回 (year, month) 的列表，包含 start 到 end 涉及的所有月份"""
+    result = []
+    curr = start_dt
+    while curr <= end_dt:
+        result.append(curr.strftime("%Y_%m"))
+        # 移动到下个月第一天
+        if curr.month == 12:
+            curr = pd.Timestamp(year=curr.year + 1, month=1, day=1)
+        else:
+            curr = pd.Timestamp(year=curr.year, month=curr.month + 1, day=1)
+
+    # 去重（虽以上逻辑不会重复，但为了保险）并返回
+    return sorted(list(set(result)))
 
 
 # ===========================================
@@ -32,7 +49,7 @@ def get_relevant_era5_files(data_dir, start_date, end_date):
 
     # 生成我们需要覆盖的年月列表 (例如: 2020-01, 2020-02)
     # 使用 'MS' (Month Start) 频率生成
-    needed_periods = pd.date_range(start=start_date, end=end_date, freq='MS').strftime("%Y_%m")
+    needed_periods = get_needed_year_months(start_date, end_date)
 
     # 如果时间范围在一个月内 (例如 1月5日到1月10日)，date_range可能为空，手动补上
     if len(needed_periods) == 0:
@@ -96,14 +113,45 @@ def extract_and_broadcast_era5():
     print("⏳ 正在执行 15分钟 频率的插值处理...")
     ds_15min = ds_sliced.resample(time='15min').interpolate('linear')
 
-    # 6. 物理量计算
+    # 6. 手动构造最后 3 个时间点 (23:15, 23:30, 23:45)
+    # 获取最后一个时间点 (23:00) 的数据
+    last_frame = ds_15min.isel(time=-1)
+
+    # 生成需要补充的时间戳
+    last_time = ds_15min.time.values[-1]
+    tail_times = pd.date_range(start=last_time + pd.Timedelta(minutes=15), periods=3, freq='15min')
+
+    # 7. 创建尾部数据 (复制 23:00 的值)
+    # 我们通过遍历 timestamps，把 last_frame 赋予新的时间坐标
+    tail_list = []
+    for t in tail_times:
+        # 复制数据，并扩展维度赋予新的时间
+        # expand_dims 配合 assign_coords 是 xarray 标准增加时间步的方法
+        new_frame = last_frame.expand_dims(time=1).assign_coords(time=[t])
+        tail_list.append(new_frame)
+
+    # 8. 拼接 (Concat)
+    # 将 原本的数据 + 3个新的尾巴 拼起来
+    ds_final = xr.concat([ds_15min] + tail_list, dim='time')
+
+    # 将变量名指回 ds_15min 以便后续代码不用改
+    ds_15min = ds_final
+
+    # 9. 物理量计算
     print("🧮 正在进行物理量计算...")
     temp_c = ds_15min['t2m'] - 273.15
     precip_mm = ds_15min['tp'] * 1000
     precip_mm = precip_mm.where(precip_mm >= 0, 0)
     wind_speed = np.sqrt(ds_15min['u10'] ** 2 + ds_15min['v10'] ** 2)
 
-    # 7. 提取与广播
+    print("📥 正在将计算结果加载至内存 (Persisting data)...")
+    # load() 会强制触发计算并把结果存入内存，之后的 .sel 就会是毫秒级的纯内存操作
+    # 如果没有这步，则会在 .values 处触发计算
+    temp_c = temp_c.load()
+    precip_mm = precip_mm.load()
+    wind_speed = wind_speed.load()
+
+    # 10. 提取与广播
     # 为了避免内存溢出，如果数据量特别大，这里可以考虑先 load() 进内存
     # 或者直接进行计算 (xarray 是懒加载的)
     print("🚀 正在提取并分发数据...")
@@ -117,7 +165,7 @@ def extract_and_broadcast_era5():
         s_lat = station['lat']
         s_lon = station['lon']
 
-        # 提取 (会触发计算)
+        # 提取
         t_val = temp_c.sel(latitude=s_lat, longitude=s_lon, method='nearest').values
         p_val = precip_mm.sel(latitude=s_lat, longitude=s_lon, method='nearest').values
         w_val = wind_speed.sel(latitude=s_lat, longitude=s_lon, method='nearest').values
@@ -133,9 +181,9 @@ def extract_and_broadcast_era5():
     final_df = final_df.set_index("Timestamp")
 
     print(f"===== 📊 数据预览 (时间范围: {final_df.index.min()} 到 {final_df.index.max()}) =====")
-    print(final_df.iloc[:, :3].head())
+    print(final_df.iloc[-10:, :3].head())
 
-    final_df.to_csv(OUTPUT_CSV)
+    final_df.to_csv(OUTPUT_CSV, header=True)
     print(f"\n✅ 处理完成！已保存至: {OUTPUT_CSV}")
 
 

@@ -1,9 +1,15 @@
 # era5_config.yaml - ERA5数据处理配置文件
 # 1. 文件路径配置
 file_paths:
-  era5_dir: "../data/era5/era5_shanxi_2020_01.nc"  # ERA5输入NC文件
+  era5_dir: "../data/era5/"  # ERA5输入NC文件夹
   era5_output: "../data/era5/virtual_stations_meteo_data.csv"  # 输出CSV文件
-  himawari_dir: "../data/himawari/"
+  himawari_dir: "../data/himawari/"  #
+  himawari_output: "../data/himawari/virtual_pv_data.csv"
+  merged_data_output: "../data/merged_data.csv"
+  output_power_csv: "../data/virtual_pv_power_normalized.csv"
+  output_params_csv: "../data/virtual_station_params.csv"
+  output_stats_csv: "../data/virtual_power_stats.csv"   # 保存均值方差，未来反归一化用
+  output_coord_csv: "../data/himawari/virtual_station_coordinates.csv"  # 定义坐标保存的文件路径
 
 # 2. 电站配置
 stations:
@@ -29,4 +35,15 @@ stations:
 # 3. 要处理的时间
 dates:
   start_date: "2020-01-01"
-  end_date: "2020-01-01"
+  end_date: "2020-01-15"
+
+
+# 论文 Table I 参数范围配置
+parameter1:
+  azimuth_range: [ -10, 10 ]  # 相对正南的偏移
+  tilt_offset: [ -10, 10 ]    # 相对纬度的偏移
+  capacity_range: [ 5, 15 ]   # kW
+  efficiency_range: [ 0.8, 1.0 ] # Initial efficiency (F0)
+  sensitivity_range: [ 0.001, 0.015 ] # Sensitivity factor (Ai)
+  years_range: [ 3, 8 ]                # Operation years (ops)
+  cleaning_days_range: [ 4, 8 ]  # --- 新增：清洗周期 ---
