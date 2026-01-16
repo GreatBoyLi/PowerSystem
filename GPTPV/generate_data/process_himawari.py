@@ -9,11 +9,18 @@ from GPTPV.utils.config import load_config
 
 # ===========================================
 
-def get_spatial_indices(sample_file):
+def get_spatial_indices(sample_file, config):
     """
     只运行一次：计算 "哪些像素点" 是我们需要提取的。
     返回一个列表，包含 100 个 (lat_idx, lon_idx) 坐标对以及经纬度数值。
     """
+
+    # 模拟论文中的 "5个真实电站" 坐标
+    REAL_STATIONS = config["stations"]["real_stations"]
+
+    # 每个电站选多少个虚拟点？
+    POINTS_PER_STATION = config["stations"]["virtual_points_per_station"]
+
     print(f"🌍 正在计算空间索引，使用模板文件: {sample_file}")
     ds = xr.open_dataset(sample_file)
 
@@ -46,11 +53,14 @@ def get_spatial_indices(sample_file):
     return all_selected_indices
 
 
-def save_station_coordinates(indices_list, save_path):
+def save_station_coordinates(indices_list, save_path, config):
     """
     新增功能：将筛选出的虚拟站点经纬度保存为 CSV
     """
     print(f"💾 正在保存虚拟站点坐标至: {save_path}")
+
+    # 每个电站选多少个虚拟点？
+    POINTS_PER_STATION = config["stations"]["virtual_points_per_station"]
 
     coord_data = []
 
@@ -71,11 +81,16 @@ def save_station_coordinates(indices_list, save_path):
     print(f"✅ 坐标保存成功！")
 
 
-def process_temporal_data(target_indices, date_list):
+def process_temporal_data(target_indices, date_list, config):
     """
     遍历每一天、每个文件，提取 SWR 数据
     """
     results = []
+
+    DATA_DIR = config["file_paths"]["himawari_dir"]
+
+    # 每个电站选多少个虚拟点？
+    POINTS_PER_STATION = config["stations"]["virtual_points_per_station"]
 
     for current_date in date_list:
         date_str = current_date.strftime("%Y-%m-%d")
@@ -142,6 +157,16 @@ def process_temporal_data(target_indices, date_list):
 
 
 def main(config):
+    DATA_DIR = config["file_paths"]["himawari_dir"]
+    output_file = config["file_paths"]["himawari_output"]
+
+    # 新增：定义坐标保存的文件路径
+    coord_output_file = config["file_paths"]["output_coord_csv"]
+
+    # 要处理的日期范围
+    START_DATE = config["dates"]["start_date"]
+    END_DATE = config["dates"]["end_date"]
+
     # 1. 找样板文件
     sample_files = glob.glob(f"{DATA_DIR}/*/*/*/*.nc")
     if not sample_files:
@@ -159,15 +184,15 @@ def main(config):
         return
 
     # 2. 计算空间索引
-    spatial_indices = get_spatial_indices(valid_sample)
+    spatial_indices = get_spatial_indices(valid_sample, config)
 
     # --- 新增步骤：保存经纬度 ---
-    save_station_coordinates(spatial_indices, coord_output_file)
+    save_station_coordinates(spatial_indices, coord_output_file, config)
     # -------------------------
 
     # 3. 处理时间序列
     dates = pd.date_range(START_DATE, END_DATE)
-    df = process_temporal_data(spatial_indices, dates)
+    df = process_temporal_data(spatial_indices, dates, config)
 
     # 4. 排序和保存数据
     if not df.empty:
@@ -186,21 +211,5 @@ def main(config):
 if __name__ == "__main__":
     config_file = "../config/config.yaml"
     config = load_config(config_file)
-
-    DATA_DIR = config["file_paths"]["himawari_dir"]
-    output_file = config["file_paths"]["himawari_output"]
-
-    # 新增：定义坐标保存的文件路径
-    coord_output_file = config["file_paths"]["output_coord_csv"]
-
-    # 2. 模拟论文中的 "5个真实电站" 坐标
-    REAL_STATIONS = config["stations"]["real_stations"]
-
-    # 3. 每个电站选多少个虚拟点？
-    POINTS_PER_STATION = config["stations"]["virtual_points_per_station"]
-
-    # 4. 要处理的日期范围
-    START_DATE = config["dates"]["start_date"]
-    END_DATE = config["dates"]["end_date"]
 
     main(config)

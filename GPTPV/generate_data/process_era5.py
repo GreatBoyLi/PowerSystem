@@ -5,21 +5,6 @@ import os
 import glob
 from GPTPV.utils.config import load_config
 
-config_file = "../config/config.yaml"
-config = load_config(config_file)
-
-# --- 配置修改 ---
-# 1. 这里现在指向包含 nc 文件的文件夹路径
-ERA5_DIR = config["file_paths"]["era5_dir"]
-OUTPUT_CSV = config["file_paths"]["era5_output"]
-REAL_STATIONS = config["stations"]["real_stations"]
-POINTS_PER_STATION = config["stations"]["virtual_points_per_station"]
-
-# 2. 获取时间范围
-START_DATE = pd.to_datetime(config["dates"]["start_date"])
-# 给结束日期加上 23小时59分59秒，确保覆盖一整天
-END_DATE = pd.to_datetime(config["dates"]["end_date"]) + pd.Timedelta(hours=23, minutes=59, seconds=59)
-
 
 def get_needed_year_months(start_dt, end_dt):
     """返回 (year, month) 的列表，包含 start 到 end 涉及的所有月份"""
@@ -71,7 +56,18 @@ def get_relevant_era5_files(data_dir, start_date, end_date):
     return sorted(selected_files)
 
 
-def extract_and_broadcast_era5():
+def extract_and_broadcast_era5(config):
+    # 这里现在指向包含 nc 文件的文件夹路径
+    ERA5_DIR = config["file_paths"]["era5_dir"]
+    OUTPUT_CSV = config["file_paths"]["era5_output"]
+    REAL_STATIONS = config["stations"]["real_stations"]
+    POINTS_PER_STATION = config["stations"]["virtual_points_per_station"]
+
+    # 获取时间范围
+    START_DATE = pd.to_datetime(config["dates"]["start_date"])
+    # 给结束日期加上 23小时59分59秒，确保覆盖一整天
+    END_DATE = pd.to_datetime(config["dates"]["end_date"]) + pd.Timedelta(hours=23, minutes=59, seconds=59)
+
     # 1. 筛选文件
     relevant_files = get_relevant_era5_files(ERA5_DIR, START_DATE, END_DATE)
 
@@ -188,4 +184,7 @@ def extract_and_broadcast_era5():
 
 
 if __name__ == "__main__":
-    extract_and_broadcast_era5()
+    config_file = "../config/config.yaml"
+    config = load_config(config_file)
+
+    extract_and_broadcast_era5(config)
