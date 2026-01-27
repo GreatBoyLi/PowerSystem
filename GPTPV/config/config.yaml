@@ -10,6 +10,10 @@ file_paths:
   output_params_csv: "../data/virtual_station_params.csv"
   output_stats_csv: "../data/virtual_power_stats.csv"   # 保存均值方差，未来反归一化用
   output_coord_csv: "../data/himawari/virtual_station_coordinates.csv"  # 定义坐标保存的文件路径
+  lllmy_raw_file: "../data/lllmy-main/场站出力.xlsx"
+  lllmy_clean_file: "../data/lllmy-main/clean_file.csv"
+  lllmy_stats_file: "../data/lllmy-main/stats_file.csv"
+  weights_dir: "../weights/"
 
 # 2. 电站配置
 stations:

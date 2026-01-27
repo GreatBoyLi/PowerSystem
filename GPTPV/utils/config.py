@@ -2,7 +2,9 @@ import os
 import yaml
 
 
-def load_config(config_path):
+def load_config(config_path="../config/config.yaml"):
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
     """加载YAML配置文件"""
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"❌ 配置文件不存在: {config_path}")

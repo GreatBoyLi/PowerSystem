@@ -111,8 +111,11 @@ class PVForecastDataset(Dataset):
 if __name__ == "__main__":
     config_file = "../config/config.yaml"
     config = load_config(config_file)
-    # 假设你的 CSV 路径
-    csv_path = config["file_paths"]["output_power_csv"]
+    # 生成的虚拟数据 CSV 路径
+    # csv_path = config["file_paths"]["output_power_csv"]
+
+    # 真实数据的 CSV 路径
+    csv_path = config["file_paths"]["lllmy_clean_file"]
 
     # 创建 Dataset
     train_ds = PVForecastDataset(csv_path, mode='train')
