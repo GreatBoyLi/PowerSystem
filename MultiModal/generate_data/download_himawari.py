@@ -15,8 +15,8 @@ LOCAL_SAVE_DIR = "../data/himawari_nc/"
 LOG_FILE = "download_himawari_status.log"
 
 # 论文使用的数据时间段 (示例)
-START_DATE = "2020-01-27"
-END_DATE = "2020-01-27"
+START_DATE = "2020-01-01"
+END_DATE = "2022-12-31"
 
 # 根据之前的探测，目标数据位于此路径
 BASE_REMOTE_DIR = "/jma/netcdf"

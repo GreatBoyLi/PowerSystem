@@ -14,10 +14,10 @@ from GPTPV.utils.config import load_config
 # ⚠️ 这里的模型参数必须与你【训练时】设置的一模一样！
 # 如果你训练时改成了 d_model=128，这里也要改，否则报错
 MODEL_CONFIG = {
-    'd_model': 28,
-    'nhead': 4,
-    'num_encoder_layers': 1,
-    'num_decoder_layers': 1
+    'd_model': 256,
+    'nhead': 8,
+    'num_encoder_layers': 2,
+    'num_decoder_layers': 2
 }
 
 
@@ -40,7 +40,7 @@ def predict_full_year(config):
     STATS_CSV_PATH = config["file_paths"]["lllmy_stats_file"]  # 保存均值方差的文件
     # 训练好的模型权重
     weights_dir = config["file_paths"]["weights_dir"]
-    weights_name = "best_pretrained_model.pth"
+    weights_name = "4_best_pretrained_model.pth"
     MODEL_PATH = os.path.join(weights_dir, weights_name)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

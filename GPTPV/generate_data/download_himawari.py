@@ -13,8 +13,8 @@ FTP_PASS = "SP+wari8"
 LOCAL_SAVE_DIR = "../data/himawari/"
 LOG_FILE = "download_himawari_status.log"
 
-START_DATE = "2020-03-01"
-END_DATE = "2020-6-30"  # 可以设置为全年
+START_DATE = "2020-08-23"
+END_DATE = "2020-09-30"  # 可以设置为全年
 
 BASE_REMOTE_DIR = "/pub/himawari/L2/PAR/021"
 

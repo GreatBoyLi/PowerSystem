@@ -100,13 +100,13 @@ def train():
     # 2. 初始化模型
     # model = PVGPT(d_model=512, nhead=8, num_encoder_layers=3, num_decoder_layers=3, dropout=0.3).to(device)
     # 模型已经过拟合，把模型的参数减少 尝试 d_model=64 或 128
-    # model = PVGPT(d_model=28, nhead=4, num_encoder_layers=1, num_decoder_layers=1, dropout=0.3).to(device)  # 参数1
+    model = PVGPT(d_model=28, nhead=4, num_encoder_layers=1, num_decoder_layers=1, dropout=0.3).to(device)  # 参数1
 
-    model = PVGPT(d_model=32, nhead=4, num_encoder_layers=1, num_decoder_layers=1, dropout=0.3).to(device)  # 参数2
-
-    model = PVGPT(d_model=64, nhead=4, num_encoder_layers=2, num_decoder_layers=2, dropout=0.3).to(device)  # 参数3
-
-    model = PVGPT(d_model=256, nhead=8, num_encoder_layers=2, num_decoder_layers=2, dropout=0.3).to(device)  # 参数4
+    # model = PVGPT(d_model=32, nhead=4, num_encoder_layers=1, num_decoder_layers=1, dropout=0.3).to(device)  # 参数2
+    #
+    # model = PVGPT(d_model=64, nhead=4, num_encoder_layers=2, num_decoder_layers=2, dropout=0.3).to(device)  # 参数3
+    #
+    # model = PVGPT(d_model=256, nhead=8, num_encoder_layers=2, num_decoder_layers=2, dropout=0.3).to(device)  # 参数4
 
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=LR)
