@@ -3,6 +3,8 @@ import numpy as np
 import os
 import pandas as pd
 from MultiModal.utils.config import load_config
+from joblib import Parallel, delayed
+import multiprocessing
 
 
 def process_one_directory(daily_dir, save_dir, target_lat, target_lon, crop_size):
@@ -61,7 +63,7 @@ def process_one_directory(daily_dir, save_dir, target_lat, target_lon, crop_size
 
             # .values 提取为 numpy 数组
             np.save(save_path, crop_data.values.astype(np.float32))  # 转为float32节省空间
-            print(f"✅ 保存: {file_name}")
+            # print(f"✅ 保存: {file_name}")
 
             ds.close()  # 记得关闭文件释放内存
 
@@ -69,39 +71,51 @@ def process_one_directory(daily_dir, save_dir, target_lat, target_lon, crop_size
             print(f"❌ 处理失败 {file}: {e}")
 
 
-if __name__ == "__main__":
-    config_file = "../config/config.yaml"
-    config = load_config(config_file)
+def process_single_day(current_date, base_read_path, base_save_path, target_lat, target_lon, crop_size):
+    """
+    封装单日处理任务，供多进程调用
+    """
+    yyyy = current_date.strftime("%Y")
+    mm = current_date.strftime("%m")
+    dd = current_date.strftime("%d")
+    yyyymm = f"{yyyy}{mm}"
 
-    # 从配置加载参数
+    daily_read_path = os.path.join(base_read_path, yyyymm, dd)
+    daily_save_path = os.path.join(base_save_path, yyyymm, dd)
+
+    if not os.path.exists(daily_save_path):
+        os.makedirs(daily_save_path, exist_ok=True)
+
+    print(f"🚀 开始多进程任务: {yyyy}-{mm}-{dd}")
+    process_one_directory(daily_read_path, daily_save_path, target_lat, target_lon, crop_size)
+    return f"Done: {yyyy}-{mm}-{dd}"
+
+
+if __name__ == "__main__":
+    # 加载配置
+    config = load_config("../config/config.yaml")
+
+    # 提取参数
     TARGET_LAT = config["stations"]["lat"]
     TARGET_LON = config["stations"]["lon"]
     CROP_SIZE = config["statellite"]["crop_size"]
-
-    # 【修复重点 1】这里只获取基础路径，不要在循环里覆盖它
     BASE_SATELLITE_PATH = config["file_paths"]["satellite_path"]
     BASE_SAVE_DIR = config["file_paths"]["crop_statellite_path"]
 
-    start_date = config["dates"]["start_date"]
-    end_date = config["dates"]["end_date"]
+    dates = pd.date_range(start=config["dates"]["start_date"],
+                          end=config["dates"]["end_date"], freq='D')
 
-    dates = pd.date_range(start=start_date, end=end_date, freq='D')
+    # --- 并行执行核心部分 ---
+    # n_jobs=-1 使用全部核心；如果内存小，建议改为 n_jobs=4 或 8
+    print(f"🛰️ 卫星数据裁剪开始，总日期数: {len(dates)}")
 
-    for current_date in dates:
-        yyyy = current_date.strftime("%Y")
-        mm = current_date.strftime("%m")
-        dd = current_date.strftime("%d")
-        yyyymm = f"{yyyy}{mm}"
+    # 获取CPU核心数，留一个核心给系统，避免死机
+    num_cores = multiprocessing.cpu_count() - 10
 
-        print(f"\n📅 处理日期: {yyyy}-{mm}-{dd}")
+    Parallel(n_jobs=num_cores, verbose=10)(
+        delayed(process_single_day)(
+            d, BASE_SATELLITE_PATH, BASE_SAVE_DIR, TARGET_LAT, TARGET_LON, CROP_SIZE
+        ) for d in dates
+    )
 
-        # 【修复重点 2】使用临时变量 daily_path，绝对不要修改 BASE_SATELLITE_PATH
-        # 原代码：file_path = os.path.join(file_path, ...) 会导致路径无限变长
-        daily_read_path = os.path.join(BASE_SATELLITE_PATH, yyyymm, dd)
-        daily_save_path = os.path.join(BASE_SAVE_DIR, yyyymm, dd)
-
-        if not os.path.exists(daily_save_path):
-            os.makedirs(daily_save_path)
-
-        # 调用处理函数
-        process_one_directory(daily_read_path, daily_save_path, TARGET_LAT, TARGET_LON, CROP_SIZE)
+    print("✅ 所有任务已圆满完成！")

@@ -18,7 +18,7 @@ END_DATE = "2022-10-08"
 # 论文指定的电站参数 (BP Solar, Alice Springs) [cite: 285]
 LATITUDE = -23.75  # 23.75°S
 LONGITUDE = 133.85  # 133.85°E
-ALTITUDE = 549  # 海拔 (米)
+ALTITUDE = 545  # 海拔 (米)
 CAPACITY = 5.0  # 装机容量 5.0 kW
 
 
