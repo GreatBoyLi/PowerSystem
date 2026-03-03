@@ -1,30 +1,28 @@
 import pandas as pd
-import numpy as np
 import pvlib
 import os
-from MultiModal.utils.config import load_config
-
-# ================= 配置区域 =================
-# 您的 CSV 文件路径 (请确保文件在正确位置)
-CSV_PATH = "筛选2020-2023数据.csv"
-
-# 结果保存路径
-OUTPUT_PATH = "../data/processed_timeseries.csv"
-
-# 论文指定的实验时间段
-START_DATE = "2020-01-01"
-END_DATE = "2022-10-08"
-
-# 论文指定的电站参数 (BP Solar, Alice Springs) [cite: 285]
-LATITUDE = -23.75  # 23.75°S
-LONGITUDE = 133.85  # 133.85°E
-ALTITUDE = 545  # 海拔 (米)
-CAPACITY = 5.0  # 装机容量 5.0 kW
+from utils.config import load_config
 
 
 # ===========================================
 
-def process_timeseries():
+def process_timeseries(config):
+    # 您的 CSV 文件路径 (请确保文件在正确位置)
+    CSV_PATH = config["file_paths"]["pv_file"]
+
+    # 结果保存路径
+    OUTPUT_PATH = config["file_paths"]["series_file"]
+
+    # 论文指定的实验时间段
+    START_DATE = config["dates"]["start_date"]
+    END_DATE = config["dates"]["end_date"]
+
+    # 论文指定的电站参数 (BP Solar, Alice Springs) [cite: 285]
+    LATITUDE = config["stations"]["lat"]
+    LONGITUDE = config["stations"]["lon"]
+    ALTITUDE = config["stations"]["altitude"]  # 海拔 (米)
+    CAPACITY = config["stations"]["capacity"]  # 装机容量 5.0 kW
+
     print(f"🚀 开始处理时间序列数据: {CSV_PATH}")
 
     # 1. 读取数据
@@ -54,6 +52,26 @@ def process_timeseries():
     df_15min = df_15min.interpolate(method='linear', limit=4)
     print(f"   重采样后数据量 (15min): {len(df_15min)} 条")
 
+    # ========================================================
+    # 🔑 关键修复：赋予时区信息
+    # ========================================================
+    # 告诉 pandas，这些时间是 "Australia/Darwin" 的当地时间
+    # ambiguous='NaT' 处理夏令时切换时的重叠时间
+    try:
+        # 如果原本没有时区，加上时区
+        if df_15min.index.tz is None:
+            df_15min.index = df_15min.index.tz_localize('Australia/Darwin', ambiguous='NaT',
+                                                        nonexistent='shift_forward')
+        else:
+            # 如果原本有时区（比如UTC），转为当地时间
+            df_15min.index = df_15min.index.tz_convert('Australia/Darwin')
+    except Exception as e:
+        print(f"⚠️ 时区转换警告: {e}")
+        # 备用方案：强制指定
+        df_15min.index = df_15min.index.tz_localize('Australia/Darwin', ambiguous='NaT')
+
+    print("   ✅ 已修正为爱丽丝泉当地时间 (ACST)")
+
     # 4. 计算天文学特征 (Zenith & Clear-sky GHI)
     # 这是论文明确要求的两个额外输入特征 [cite: 128, 129]
     print("   正在计算太阳天顶角和晴空辐照度...")
@@ -80,7 +98,7 @@ def process_timeseries():
     print(f"   清洗前: {len(df_15min)}")
 
     # 保留 Zenith <= 85 的行
-    df_clean = df_15min[df_15min['Solar_Zenith'] <= 85].copy()
+    df_clean = df_15min  #[df_15min['Solar_Zenith'] <= 85].copy()   不筛选了
 
     # 6. 归一化 (Normalization) [cite: 305]
     # 论文中提到对卫星图做了归一化，通常对功率也需要做归一化以便训练
@@ -106,4 +124,7 @@ def process_timeseries():
 
 
 if __name__ == "__main__":
-    process_timeseries()
+    # 加载配置
+    config = load_config("../config/config.yaml")
+
+    process_timeseries(config)

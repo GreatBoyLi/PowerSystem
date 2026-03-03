@@ -2,7 +2,7 @@ import xarray as xr
 import numpy as np
 import os
 import pandas as pd
-from MultiModal.utils.config import load_config
+from utils.config import load_config
 from joblib import Parallel, delayed
 import multiprocessing
 

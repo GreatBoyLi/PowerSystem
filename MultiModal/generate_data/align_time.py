@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from tqdm import tqdm
 from joblib import Parallel, delayed  # 导入 joblib
-from MultiModal.utils.config import load_config
+from utils.config import load_config
 import multiprocessing
 
 
