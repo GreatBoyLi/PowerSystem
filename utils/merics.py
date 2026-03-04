@@ -62,7 +62,7 @@ def evaluate_metrics(preds, targets):
     targets_centered = targets - mean_targets
     preds_centered = preds - mean_preds
 
-    # 分子部分: 交叉相乘之和
+    # 分子部分: 交叉相乘之和.
     numerator = torch.sum(targets_centered * preds_centered)
 
     # 分母部分: 各自平方和的平方根的乘积
