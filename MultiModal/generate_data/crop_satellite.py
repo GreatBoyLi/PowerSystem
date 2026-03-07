@@ -110,7 +110,7 @@ if __name__ == "__main__":
     print(f"🛰️ 卫星数据裁剪开始，总日期数: {len(dates)}")
 
     # 获取CPU核心数，留一个核心给系统，避免死机
-    num_cores = multiprocessing.cpu_count() - 10
+    num_cores = multiprocessing.cpu_count() - 5
 
     Parallel(n_jobs=num_cores, verbose=10)(
         delayed(process_single_day)(

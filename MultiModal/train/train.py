@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt  # 【新增 1】导入绘图库
 from MultiModal.model.dataset import SatellitePVDataset
 from MultiModal.model.model import MultiModalPVNet
 # from MultiModal.model.model_new import MultiModalPVNet
-from MultiModal.utils.config import load_config
+from utils.config import load_config
 
 # ================= 配置区域 (Hyperparameters) =================
 # 加载配置

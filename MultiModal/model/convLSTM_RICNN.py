@@ -17,6 +17,21 @@ class ConvLSTMCell(nn.Module):
     def forward(self, x, state):
         h_prev, c_prev = state
         combined = torch.cat([x, h_prev], dim=1)
+
+        # ================== 🚨 安检站开始 ==================
+        # 1. 检查输入图片是不是有毒
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            print("\n💥 抓到了！输入给卷积的数据 x 本身就包含 NaN 或 Inf！")
+            print("这说明你的 .npy 卫星云图文件里有脏数据！")
+            # 强行停止程序，不让它继续跑了
+            raise ValueError("Input x has NaN/Inf!")
+
+        # 2. 检查卷积层的权重是不是烂了
+        if torch.isnan(self.conv.weight).any():  # 假设你的卷积层叫 self.conv_layer
+            print("\n💥 抓到了！卷积层的权重 Weight 变成了 NaN！")
+            print("这说明上一个 Batch 的 Loss 或者反向传播爆炸了，把模型权重毒死了！")
+            raise ValueError("Model weights have become NaN!")
+        # ================== 🚨 安检站结束 ==================
         conv_output = self.conv(combined)
 
         i_conv, f_conv, o_conv, g_conv = conv_output.chunk(4, dim=1)

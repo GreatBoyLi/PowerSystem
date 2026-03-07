@@ -157,7 +157,7 @@ def main():
         print(f"❌ 错误: 找不到数据文件。请检查路径:\n CSV: {CSV_PATH}\n SAT: {SAT_DIR}")
         return
 
-    train_dataset = SatellitePVDataset(CSV_PATH, SAT_DIR, mode='train')
+    train_dataset = SatellitePVDataset(CSV_PATH, SAT_DIR, mode='train', split_ratio=0.8)
     val_dataset = SatellitePVDataset(CSV_PATH, SAT_DIR, mode='val')
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
@@ -261,5 +261,5 @@ def main():
 if __name__ == "__main__":
     criterion_mse = nn.MSELoss()
     criterion_dcca = DCCALoss()
-    lambda_c = 0.1  # 论文中的平衡权重 \lambda_C，通常取 0.01 到 0.1
+    lambda_c = 0.01  # 论文中的平衡权重 \lambda_C，通常取 0.01 到 0.1
     main()
